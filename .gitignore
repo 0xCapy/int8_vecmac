@@ -1,0 +1,10 @@
+# Vivado
+*.jou
+*.log
+*.str
+*.cache/
+*.runs/
+*.sim/
+*.ip_user_files/
+*.hw/
+*.Xil/
