@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<wave_config>
+   <wave_state>
+   </wave_state>
+   <db_ref_list>
+      <db_ref path="tb_mult2_behav.wdb" id="1">
+         <top_modules>
+            <top_module name="glbl" />
+            <top_module name="tb_mult2" />
+         </top_modules>
+      </db_ref>
+   </db_ref_list>
+   <zoom_setting>
+      <ZoomStartTime time="0.000 ns"></ZoomStartTime>
+      <ZoomEndTime time="431.229 ns"></ZoomEndTime>
+      <Cursor1Time time="2.000 ns"></Cursor1Time>
+   </zoom_setting>
+   <column_width_setting>
+      <NameColumnWidth column_width="193"></NameColumnWidth>
+      <ValueColumnWidth column_width="172"></ValueColumnWidth>
+   </column_width_setting>
+   <WVObjectSize size="15" />
+   <wvobject fp_name="/tb_mult2/dut/start" type="logic">
+      <obj_property name="ElementShortName">start</obj_property>
+      <obj_property name="ObjectShortName">start</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_mult2/dut/reset" type="logic">
+      <obj_property name="ElementShortName">reset</obj_property>
+      <obj_property name="ObjectShortName">reset</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_mult2/dut/A" type="array">
+      <obj_property name="ElementShortName">A[3:0]</obj_property>
+      <obj_property name="ObjectShortName">A[3:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_mult2/dut/B" type="array">
+      <obj_property name="ElementShortName">B[3:0]</obj_property>
+      <obj_property name="ObjectShortName">B[3:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_mult2/dut/O" type="array">
+      <obj_property name="ElementShortName">O[7:0]</obj_property>
+      <obj_property name="ObjectShortName">O[7:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_mult2/dut/Finish" type="logic">
+      <obj_property name="ElementShortName">Finish</obj_property>
+      <obj_property name="ObjectShortName">Finish</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_mult2/dut/Phi0" type="logic">
+      <obj_property name="ElementShortName">Phi0</obj_property>
+      <obj_property name="ObjectShortName">Phi0</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_mult2/dut/Phi1" type="logic">
+      <obj_property name="ElementShortName">Phi1</obj_property>
+      <obj_property name="ObjectShortName">Phi1</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_mult2/dut/m1" type="logic">
+      <obj_property name="ElementShortName">m1</obj_property>
+      <obj_property name="ObjectShortName">m1</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_mult2/dut/m2" type="logic">
+      <obj_property name="ElementShortName">m2</obj_property>
+      <obj_property name="ObjectShortName">m2</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_mult2/dut/m3" type="logic">
+      <obj_property name="ElementShortName">m3</obj_property>
+      <obj_property name="ObjectShortName">m3</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_mult2/dut/m4" type="logic">
+      <obj_property name="ElementShortName">m4</obj_property>
+      <obj_property name="ObjectShortName">m4</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_mult2/dut/ACC" type="array">
+      <obj_property name="ElementShortName">ACC[8:0]</obj_property>
+      <obj_property name="ObjectShortName">ACC[8:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_mult2/dut/State" type="array">
+      <obj_property name="ElementShortName">State[3:0]</obj_property>
+      <obj_property name="ObjectShortName">State[3:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_mult2/dut/Finish_reg" type="logic">
+      <obj_property name="ElementShortName">Finish_reg</obj_property>
+      <obj_property name="ObjectShortName">Finish_reg</obj_property>
+   </wvobject>
+</wave_config>

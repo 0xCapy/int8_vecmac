@@ -12,55 +12,43 @@
    </db_ref_list>
    <zoom_setting>
       <ZoomStartTime time="0.000 ns"></ZoomStartTime>
-      <ZoomEndTime time="97.988 ns"></ZoomEndTime>
-      <Cursor1Time time="1,585.000 ns"></Cursor1Time>
+      <ZoomEndTime time="200.001 ns"></ZoomEndTime>
+      <Cursor1Time time="0.346 ns"></Cursor1Time>
    </zoom_setting>
    <column_width_setting>
       <NameColumnWidth column_width="193"></NameColumnWidth>
-      <ValueColumnWidth column_width="190"></ValueColumnWidth>
+      <ValueColumnWidth column_width="178"></ValueColumnWidth>
    </column_width_setting>
-   <WVObjectSize size="10" />
-   <wvobject fp_name="/tb_mult/clk" type="logic">
-      <obj_property name="ElementShortName">clk</obj_property>
-      <obj_property name="ObjectShortName">clk</obj_property>
-   </wvobject>
-   <wvobject fp_name="/tb_mult/rst" type="logic">
-      <obj_property name="ElementShortName">rst</obj_property>
-      <obj_property name="ObjectShortName">rst</obj_property>
-   </wvobject>
-   <wvobject fp_name="/tb_mult/start" type="logic">
-      <obj_property name="ElementShortName">start</obj_property>
-      <obj_property name="ObjectShortName">start</obj_property>
-   </wvobject>
-   <wvobject fp_name="/tb_mult/a_in" type="array">
+   <WVObjectSize size="7" />
+   <wvobject fp_name="/tb_mult/dut/a_in" type="array">
       <obj_property name="ElementShortName">a_in[3:0]</obj_property>
       <obj_property name="ObjectShortName">a_in[3:0]</obj_property>
       <obj_property name="Radix">BINARYRADIX</obj_property>
    </wvobject>
-   <wvobject fp_name="/tb_mult/b_in" type="array">
+   <wvobject fp_name="/tb_mult/dut/b_in" type="array">
       <obj_property name="ElementShortName">b_in[3:0]</obj_property>
       <obj_property name="ObjectShortName">b_in[3:0]</obj_property>
       <obj_property name="Radix">BINARYRADIX</obj_property>
    </wvobject>
-   <wvobject fp_name="/tb_mult/out" type="array">
+   <wvobject fp_name="/tb_mult/dut/out" type="array">
       <obj_property name="ElementShortName">out[7:0]</obj_property>
       <obj_property name="ObjectShortName">out[7:0]</obj_property>
       <obj_property name="Radix">BINARYRADIX</obj_property>
    </wvobject>
-   <wvobject fp_name="/tb_mult/finish" type="logic">
+   <wvobject fp_name="/tb_mult/dut/start" type="logic">
+      <obj_property name="ElementShortName">start</obj_property>
+      <obj_property name="ObjectShortName">start</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_mult/dut/finish" type="logic">
       <obj_property name="ElementShortName">finish</obj_property>
       <obj_property name="ObjectShortName">finish</obj_property>
    </wvobject>
-   <wvobject fp_name="/tb_mult/i" type="array">
-      <obj_property name="ElementShortName">i[31:0]</obj_property>
-      <obj_property name="ObjectShortName">i[31:0]</obj_property>
+   <wvobject fp_name="/tb_mult/dut/clk" type="logic">
+      <obj_property name="ElementShortName">clk</obj_property>
+      <obj_property name="ObjectShortName">clk</obj_property>
    </wvobject>
-   <wvobject fp_name="/tb_mult/CLK_HALF" type="other">
-      <obj_property name="ElementShortName">CLK_HALF</obj_property>
-      <obj_property name="ObjectShortName">CLK_HALF</obj_property>
-   </wvobject>
-   <wvobject fp_name="/tb_mult/N_CASES" type="array">
-      <obj_property name="ElementShortName">N_CASES[31:0]</obj_property>
-      <obj_property name="ObjectShortName">N_CASES[31:0]</obj_property>
+   <wvobject fp_name="/tb_mult/dut/rst" type="logic">
+      <obj_property name="ElementShortName">rst</obj_property>
+      <obj_property name="ObjectShortName">rst</obj_property>
    </wvobject>
 </wave_config>
