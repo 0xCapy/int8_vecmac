@@ -1,86 +1,74 @@
-`timescale 1ns / 1ps
-//////////////////////////////////////////////////////////////////////////////////
-// Company: 
-// Engineer: 
-// 
-// Create Date: 01.02.2022 13:58:23
-// Design Name: 
-// Module Name: Multipilier2
-// Project Name: 
-// Target Devices: 
-// Tool Versions: 
-// Description: 
-// 
-// Dependencies: 
-// 
-// Revision:
-// Revision 0.01 - File Created
-// Additional Comments:
-// 
-//////////////////////////////////////////////////////////////////////////////////
+/*------------------------------------------------------------
+Multipilier2.v  -  4-bit ¡Á 4-bit unsigned multiplier
+Shift-add algorithm with internal two-phase clock
+start  : hold High during operation, Low = idle
+Finish : 1-cycle pulse, auto-cleared when start goes Low
+Fixed carry width, non-blocking regs, and Finish clearing
+------------------------------------------------------------*/
 
+module Multipilier2 (
+    input  wire        reset,   // async, high-active
+    input  wire        start,   // keep high during operation
+    input  wire [3:0]  A,
+    input  wire [3:0]  B,
+    output reg  [7:0]  O,
+    output wire        Finish
+);
 
-module Multipilier2(
-    input reset,
-    input start,
-    input [3:0] A,
-    input [3:0] B,
-    output reg [7:0] O,
-    output wire Finish
-    );
-    wire Phi0,Phi1;// 2 phase clocking
-    wire m1,m2,m3,m4;
-    // state machine
-    reg[3:0] State;
-    // Accumulator
-    reg [8:0] ACC; // Accumulator
-    // logic to create 2 phase clocking when starting
-    nand u0(m1,start,m2);
-    buf #20 u1(m2,m1);
-    buf #10 u2(Phi0,m1);// First phase clocking
-    not #2 u5(m4,Phi0);
-    assign m3=~m1; 
-    and #2 u4(Phi1,m3,m4);// Second phase clocking
-    assign Finish = (State==9)? 1'b1:1'b0; // Finish Flag
-    // FSM
-    always @(posedge Phi0 or posedge Phi1 or posedge reset)
-    begin
-        if(reset) begin
-            State <= 0; 
-            ACC <= 0; 
-            O <= 0; 
+    /* ---------------- two-phase clock generator -------------- */
+    wire Phi0 , Phi1 ;
+    wire m1   , m2 , m3 , m4 ;
+    nand      u0 (m1 , start , m2);
+    buf  #20  u1 (m2 , m1);
+    buf  #10  u2 (Phi0, m1);
+    not  #2   u5 (m4 , Phi0);
+    assign m3 = ~m1;
+    and  #2   u4 (Phi1, m3 , m4);
+
+    /* ---------------- registers ------------------------------ */
+    reg  [3:0] State;
+    reg  [8:0] ACC;
+    reg        Finish_reg;
+    assign Finish = Finish_reg;
+
+    /* --------- main FSM runs on internal two-phase clocks ---- */
+    always @(posedge Phi0 or posedge Phi1 or posedge reset) begin
+        if (reset) begin
+            State      <= 4'd0;
+            ACC        <= 9'd0;
+            O          <= 8'd0;
+            Finish_reg <= 1'b0;
         end
-        else if((Phi0==1'b1) || (Phi1==1'b1)) begin // 2 phase clocking
-            if(State==0)
-            begin
-                ACC[8:4] <= 5'b00000; // begin cycle
-                ACC[3:0] <= A; // Load A
-                State <= 1;
-            end
-         else if(State==1 || State == 3 || State ==5 || State ==7) 
-                // add/shift State
-          begin
-            if(ACC[0] == 1'b1) begin // add multiplicand
-            ACC[8:4] <= {1'b0,ACC[7:4]} + B; 
-            State <= State + 1;
-          end
-          else
-          begin
-            ACC <= {1'b0,ACC[8:1]};// shift right
-            State <= State + 2;
-          end
-          end
-          else if(State==2 || State == 4 || State ==6 || State ==8) 
-                // shift State
-          begin
-                ACC <= {1'b0,ACC[8:1]}; // shift right
-                State <= State + 1;
-          end 
-          else if(State == 9) begin
-                State <= 0;
-                O <= ACC[7:0]; 
-          end
+        else if (Phi0 || Phi1) begin
+            case (State)
+              4'd0: begin
+                  ACC[8:4]   <= 5'd0;
+                  ACC[3:0]   <= A;
+                  State      <= 4'd1;
+              end
+              4'd1,4'd3,4'd5,4'd7: begin
+                  if (ACC[0])
+                      ACC[8:4] <= ACC[8:4] + B;   // carry-safe add
+                  State <= State + 1;
+              end
+              4'd2,4'd4,4'd6,4'd8: begin
+                  ACC   <= {1'b0, ACC[8:1]};      // logical shift-right
+                  State <= State + 1;
+              end
+              4'd9: begin
+                  O          <= ACC[7:0];
+                  Finish_reg <= 1'b1;             // raise done
+                  State      <= 4'd0;             // back to idle
+              end
+              default: State <= 4'd0;
+            endcase
+        end
     end
- end 
- endmodule
-   
+
+    /* --------- NEW: async clear Finish when start is released */
+    always @(negedge start or posedge reset) begin
+        if (reset)      Finish_reg <= 1'b0;
+        else            Finish_reg <= 1'b0;       // clear on start low
+    end
+
+endmodule
