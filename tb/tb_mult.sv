@@ -1,3 +1,18 @@
+/*=========================================================
+File        : tb_mult.sv
+Purpose     : Self-checking testbench for multipilier.v
+---------------------------------------------------------
+Test Plan:
+Generates 100 MHz clock, active-high reset
+Issues 30 random 4-bit operand pairs plus edge case 15¡Á15
+Pulses start for 1 clk, waits on finish
+Compares DUT output to SystemVerilog '*' operator
+$error on mismatch, $display pass banner then $finish
+---------------------------------------------------------
+Expected Console Banner on Success:
+All random + boundary cases passed
+---------------------------------------------------------*/
+
 `timescale 1ns/1ps
 module tb_mult;
 
