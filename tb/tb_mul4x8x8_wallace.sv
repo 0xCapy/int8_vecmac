@@ -1,103 +1,91 @@
-// -----------------------------------------------------------------------------
-//  Testbench for 4Ã—(8Ã—8) unsigned Wallace-Tree Multiplier
-// -----------------------------------------------------------------------------
 `timescale 1ns/1ps
-
+// -----------------------------------------------------------------------------
+//  Testbench : tb_mul4x8x8_wallace   (Vivado 2021.1 compatible)
+//  Validates the 4-lane 8¡Á8 Wallace multiplier - 1-cycle latency.
+// -----------------------------------------------------------------------------
 module tb_mul4x8x8_wallace;
-  //-------------------------------------------------------
-  //  Parameters
-  //-------------------------------------------------------
-  localparam CLK_PERIOD = 5;            // 200 MHz
-  localparam TEST_NUM   = 10000;
-  integer i;
+  //-------------------------------------------------------------------
+  //  Clock & Reset
+  //-------------------------------------------------------------------
+  reg clk   = 1'b0;
+  reg rst_n = 1'b0;
+  always #5 clk = ~clk;               // 100?MHz ¡ú 10 ns period
 
-  //-------------------------------------------------------
-  //  DUT interface
-  //-------------------------------------------------------
-  reg         clk  = 0;
-  reg         rst_n = 0;
-  reg         in_valid = 0;
-  reg  [7:0]  in_a [0:3];
-  reg  [7:0]  in_b [0:3];
+  //-------------------------------------------------------------------
+  //  DUT interface signals (bus-based)
+  //-------------------------------------------------------------------
+  reg         in_valid = 1'b0;
+  reg [31:0]  in_a     = 32'd0;       // {lane3, lane2, lane1, lane0}
+  reg [31:0]  in_b     = 32'd0;
   wire        out_valid;
-  wire [15:0] product [0:3];
+  wire [63:0] product;                // {p3, p2, p1, p0}
 
-  //-------------------------------------------------------
-  //  Clock & reset
-  //-------------------------------------------------------
-  always #(CLK_PERIOD/2) clk = ~clk;
-
-  initial begin
-    #7 rst_n = 1;               // release reset after some time
-  end
-
-  //-------------------------------------------------------
-  //  DUT instantiation
-  //-------------------------------------------------------
+  //-------------------------------------------------------------------
+  //  Instantiate Device Under Test
+  //-------------------------------------------------------------------
   mul4x8x8_wallace dut (
-    .clk       (clk),
-    .rst_n     (rst_n),
-    .in_valid  (in_valid),
-    .in_a0     (in_a[0]),
-    .in_a1     (in_a[1]),
-    .in_a2     (in_a[2]),
-    .in_a3     (in_a[3]),
-    .in_b0     (in_b[0]),
-    .in_b1     (in_b[1]),
-    .in_b2     (in_b[2]),
-    .in_b3     (in_b[3]),
-    .out_valid (out_valid),
-    .p0        (product[0]),
-    .p1        (product[1]),
-    .p2        (product[2]),
-    .p3        (product[3])
+    .clk      (clk),
+    .rst_n    (rst_n),
+    .in_valid (in_valid),
+    .in_a     (in_a),
+    .in_b     (in_b),
+    .out_valid(out_valid),
+    .product  (product)
   );
 
-  //-------------------------------------------------------
-  //  Random stimulus & checker
-  //-------------------------------------------------------
-  reg [31:0] seed = 32'h5A5AA5A5;
-  reg [15:0] golden [0:3];
+  //-------------------------------------------------------------------
+  //  Random stimulus (uses plain scalars for full Verilog-2001 support)
+  //-------------------------------------------------------------------
+  integer i;
+  reg [7:0] a0, a1, a2, a3;
+  reg [7:0] b0, b1, b2, b3;
+  reg [15:0] ref0, ref1, ref2, ref3;
 
-  task automatic rand_vec;
-    output [7:0] ra, rb;
-    begin
-      seed = {$random(seed)};
-      ra   = seed[7:0];
-      seed = {$random(seed)};
-      rb   = seed[7:0];
-    end
-  endtask
+  localparam integer SEED = 32'h5A5AA5A5;
 
   initial begin
-    @(posedge rst_n);            // wait reset de-assert
-    for (i = 0; i < TEST_NUM; i = i + 1) begin
-      // random generate four pairs each cycle
+    // Reset pulse
+    #25 rst_n = 1'b1;
+
+    // Iterate 1000 random transactions
+    for (i = 0; i < 1000; i = i + 1) begin
+      @(negedge clk);
+      // Generate random operands and references
+      a0 = $urandom(SEED ^ (i*4 + 0));
+      a1 = $urandom(SEED ^ (i*4 + 1));
+      a2 = $urandom(SEED ^ (i*4 + 2));
+      a3 = $urandom(SEED ^ (i*4 + 3));
+      b0 = $urandom(SEED ^ (i*4 + 4));
+      b1 = $urandom(SEED ^ (i*4 + 5));
+      b2 = $urandom(SEED ^ (i*4 + 6));
+      b3 = $urandom(SEED ^ (i*4 + 7));
+
+      ref0 = a0 * b0;
+      ref1 = a1 * b1;
+      ref2 = a2 * b2;
+      ref3 = a3 * b3;
+
+      // Pack into 32-bit buses (lane3..lane0)
+      in_a   = {a3, a2, a1, a0};
+      in_b   = {b3, b2, b1, b0};
       in_valid = 1'b1;
-      rand_vec(in_a[0], in_b[0]);
-      rand_vec(in_a[1], in_b[1]);
-      rand_vec(in_a[2], in_b[2]);
-      rand_vec(in_a[3], in_b[3]);
-      golden[0] = in_a[0] * in_b[0];
-      golden[1] = in_a[1] * in_b[1];
-      golden[2] = in_a[2] * in_b[2];
-      golden[3] = in_a[3] * in_b[3];
-      @(posedge clk);            // 1-cycle pipeline in DUT
-      in_valid = 1'b0;
-      @(posedge clk);            // wait out_valid
-      if (out_valid) begin
-        if (product[0] !== golden[0] ||
-            product[1] !== golden[1] ||
-            product[2] !== golden[2] ||
-            product[3] !== golden[3]) begin
-          $display("Mismatch at vector %0d!", i);
-          $display("A=%0d,B=%0d, P=%0d, G=%0d",
-                   in_a[0], in_b[0], product[0], golden[0]);
-          $fatal(1);
-        end
+
+      @(negedge clk);
+      in_valid = 1'b0;                // single-cycle pulse
+
+      // Wait exactly 1 cycle for output and compare
+      @(posedge clk);
+      if (!out_valid) $fatal("out_valid should be high after 1 cycle");
+
+      if (product !== {ref3, ref2, ref1, ref0}) begin
+        $display("\nMismatch @iter %0d", i);
+        $display(" a=%h b=%h -> dut=%h | exp=%h%h%h%h", in_a, in_b,
+                 product, ref3, ref2, ref1, ref0);
+        $fatal;
       end
     end
-    $display("TB finished without mismatches.");
+
+    $display("\n*** TB finished without mismatches. ***\n");
     $finish;
   end
 endmodule
