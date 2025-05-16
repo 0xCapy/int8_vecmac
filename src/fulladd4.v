@@ -28,6 +28,6 @@ module fulladd4(
     output Cout
     );
     
-    assign {cout, SUM} = A + B + Cin;
+    assign {Cout, SUM} = A + B + Cin;
     
 endmodule
