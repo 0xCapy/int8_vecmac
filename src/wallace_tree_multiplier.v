@@ -115,7 +115,7 @@ module wallace_mult8 (
     // ---------------- CPA (17-bit) ---------------
     wire [17:0] final18 = {1'b0, s3}
                        +  c3 
-                       +  r2c1;
+                       +  r2c1;  
     // -------- P3 registers & outputs --------------------------------
     reg [15:0] product_r;
     reg        v3;

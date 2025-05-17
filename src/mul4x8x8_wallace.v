@@ -17,8 +17,6 @@ module mul4x8x8_wallace (
     wire [15:0] p[3:0];
     wire [3:0]  v;
     
-    wire [17:0] tree_sum; //for adder tree
-    wire        tree_valid;
     genvar i;
     generate
         for(i=0;i<4;i=i+1) begin : MUL
@@ -31,6 +29,8 @@ module mul4x8x8_wallace (
         end
     endgenerate
     // ========= adder-tree =======
+    wire [17:0] tree_sum; //for adder tree
+    wire        tree_valid;
     adder_tree4 u_tree (
         .clk      (clk),
         .rst_n    (rst_n),
@@ -39,7 +39,8 @@ module mul4x8x8_wallace (
         .out_valid(tree_valid),
         .sum      (tree_sum)
     );
-
+    assign out_sum   = tree_sum; 
+    assign out_valid = tree_valid;
     assign product   = {p[3],p[2],p[1],p[0]}; //testing only
-    assign out_valid = v[0];   //four pipline go together
+
 endmodule

@@ -1,5 +1,6 @@
 `timescale 1ns/1ps
 // =============================================
+
 (* use_dsp = "no" *)
 module adder_tree4 #(
     parameter W_IN  = 16,
