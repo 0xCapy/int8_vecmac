@@ -1,6 +1,7 @@
 `timescale 1ns/1ps
 // -------------------------------------------------------------
 //  Testbench : tb_mul4x8x8_wallace 
+// -------------------------------------------------------------
 module tb_mul4x8x8_wallace;
 
     // ===== DUT ports =====
@@ -45,7 +46,7 @@ module tb_mul4x8x8_wallace;
         vec_a[9] = 32'hB711705A; vec_b[9] = 32'hC2B09C09; gold[9] = 64'h8AAE0BB04440032A;
 
         // ------------ Reset sequence -------------
-        $display("\n=== Wallace Multiplier TB ===");
+        $display("\n=== Wallace 4¡Á8¡Á8 Multiplier TB ===");
         rst_n = 0;
         repeat (3) @(posedge clk);
         rst_n = 1;
@@ -59,19 +60,19 @@ module tb_mul4x8x8_wallace;
             @(negedge clk);
             in_valid = 0;
 
-            // pipline
+            //wait pipline
             wait (out_valid);
             @(posedge clk);
 
             if (product !== gold[i]) begin
-                $display("? FAIL idx=%0d  in_a=0x%08h in_b=0x%08h", i, vec_a[i], vec_b[i]);
+                $display("FAIL idx=%0d  in_a=0x%08h in_b=0x%08h", i, vec_a[i], vec_b[i]);
                 $display("   DUT =0x%016h  GOLD=0x%016h", product, gold[i]);
             end
             else begin
-                $display("? PASS idx=%0d ï¿½ï¿½ 0x%016h", i, product);
+                $display(" PASS idx=%0d ======= 0x%016h", i, product);
             end
 
-            repeat (2) @(posedge clk);  
+            repeat (2) @(posedge clk); 
         end
 
         $display("=== All tests completed ===");
