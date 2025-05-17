@@ -113,8 +113,9 @@ module wallace_mult8 (
     assign c3[W-1]     = 1'b0;
 
     // ---------------- CPA (17-bit) ---------------
-    wire [16:0] final17 = {1'b0,s3} + {c3} + {r2c1};
-
+    wire [17:0] final18 = {1'b0, s3}
+                       +  c3 
+                       +  r2c1;
     // -------- P3 registers & outputs --------------------------------
     reg [15:0] product_r;
     reg        v3;
@@ -123,7 +124,7 @@ module wallace_mult8 (
             v3 <= 1'b0;
         end else if (v2) begin
             v3       <= 1'b1;
-            product_r<= final17[15:0];
+            product_r<= final18[15:0];
         end else begin
             v3 <= 1'b0;
         end
