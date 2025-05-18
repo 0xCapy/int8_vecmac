@@ -25,8 +25,8 @@ module tb_vector_mac_top_fix;
     //----------------------------------------------------------------
     // parameters
     //----------------------------------------------------------------
-    localparam DELAY = 6;      // core latency (sum_valid 出现延迟)
-    localparam BEATS = 250;    // 250×4 = 1000 elements per MAC
+    localparam DELAY = 6;      // core latency
+    localparam BEATS = 250;    // 250x4 = 1000 elements per MAC
 
     //----------------------------------------------------------------
     // helper : 8-bit dot-product
@@ -66,7 +66,7 @@ module tb_vector_mac_top_fix;
     integer pass = 0, fail = 0;
 
     //----------------------------------------------------------------
-    // stimulus : 5 boundary + 10 000 random
+    // stimulus : 5 boundary with 10 000 random
     //----------------------------------------------------------------
     task drive(input [31:0] a, b);
     begin
@@ -105,8 +105,6 @@ module tb_vector_mac_top_fix;
         $finish;
     end
 
-    //----------------------------------------------------------------
-    // main checker ── 每拍移位 FIFO，out_valid 时比较
     //----------------------------------------------------------------
     always @(posedge clk) begin
         // push current dot4 (if in_valid) into FIFO
