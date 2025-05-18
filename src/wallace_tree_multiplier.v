@@ -110,7 +110,7 @@ module wallace_mult8 (
     endgenerate
     assign s3[W-1] = r2s0[W-1] ^ r2s1[W-1] ^ r2c0[W-1];
     assign c3      [0] = 1'b0;
-    assign c3[W-1]     = 1'b0;
+
 
     // ---------------- CPA (17-bit) ---------------
     wire [17:0] final18 = {1'b0, s3}

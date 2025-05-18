@@ -1,39 +1,36 @@
-`timescale 1ns/1ps
-// =============================================
-
-(* use_dsp = "no" *)
-module adder_tree4 #(
-    parameter W_IN  = 16,
-    parameter W_MID = W_IN + 1,
-    parameter W_OUT = W_IN + 2
-)(
-    input  wire                clk,
-    input  wire                rst_n,
-    input  wire                in_valid,
-    input  wire [W_IN-1:0]     p0, p1, p2, p3,
-    output reg                 out_valid,
-    output reg  [W_OUT-1:0]    sum 
+// adder_tree4_piped.v £¨¸Ä³ÉÁ½ÅÄ£©
+module adder_tree4 (
+    input  wire        clk, rst_n,
+    input  wire        in_valid,
+    input  wire [15:0] p0, p1, p2, p3,
+    output wire        out_valid,
+    output wire [17:0] sum
 );
-    // ---------- p0+p1 , p2+p3 
-    reg [W_MID-1:0] s01_r, s23_r;   // 17-bit each
-    reg             v1;
+    // stage-1
+    (* keep = "true" *)reg [16:0] s0, s1;        // 17-bit
+    (* keep = "true" *)reg        v1;
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            v1   <= 1'b0;
+            s0 <= 0; s1 <= 0; v1 <= 0;
         end else begin
-            v1   <= in_valid;
-            s01_r<= p0 + p1; 
-            s23_r<= p2 + p3;
+            s0 <= p0 + p1;
+            s1 <= p2 + p3;
+            v1 <= in_valid;
         end
     end
 
-    // ----------  s01 + s23  
+    // stage-2
+    reg [17:0] sum_r;
+    reg        v2;
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            out_valid <= 1'b0;
+            sum_r <= 0; v2 <= 0;
         end else begin
-            out_valid <= v1;
-            sum       <= s01_r + s23_r;
+            sum_r <= s0 + s1;
+            v2    <= v1;
         end
     end
+
+    assign sum       = sum_r;
+    assign out_valid = v2;
 endmodule
