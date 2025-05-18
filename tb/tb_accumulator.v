@@ -1,83 +1,128 @@
 `timescale 1ns/1ps
-// ==========================================================================
-//  Self-checking Testbench for accumulator.v
-//  ? W_IN  : 18 (partial_sum width)
-//  ? BEATS : 2 (two partial sums per vector)
-//  ? VECT  : 500 random vectors
-//  ? result_valid rises the same cycle as the last in_valid
-// ==========================================================================
-module tb_accumulator;
+// ============================================================================
+//  tb_accumulator_var.v   (REV-E - auto-terminate, no manual run-time setup)
+//  Author : <your name>   (Vivado 2021.1, Verilog-2001)
+// ============================================================================
 
-    // ---------- parameters ----------
-    localparam W_IN  = 18;
-    localparam BEATS = 2;
-    localparam VECT  = 500;          // number of vectors to test
+`define USE_ACCUMULATOR   // <
 
-    // ---------- clock & reset ----------
-    reg clk = 0;  always #5 clk = ~clk;   // 100 MHz
-    reg rst_n = 0;
-
-    // ---------- DUT I/O ----------
-    reg                 in_valid = 0;
-    reg  [W_IN-1:0]     partial_sum = 0;
-    wire [W_IN:0]       final_sum;
-    wire                result_valid;
-
-    accumulator #(
-        .W_IN (W_IN ),
-        .BEATS(BEATS)
-    ) dut (
-        .clk        (clk),
-        .rst_n      (rst_n),
-        .in_valid   (in_valid),
-        .partial_sum(partial_sum),
-        .final_sum  (final_sum),
-        .result_valid(result_valid)
-    );
-
-    // ---------- scoreboard ----------
-    integer i, beat;
-    integer err = 0;
-    reg [W_IN:0] gold;
+module tb_accumulator_var;
+    // ---------------------------------------------------------------------
+    // Five instances
+    // ---------------------------------------------------------------------
+    tb_lane #(.LANES(1 )) u_tb1 ();
+    tb_lane #(.LANES(2 )) u_tb2 ();
+    tb_lane #(.LANES(4 )) u_tb4 ();
+    tb_lane #(.LANES(8 )) u_tb8 ();
+    tb_lane #(.LANES(16)) u_tb16();
 
     initial begin
-        $display("\n=== Accumulator TB  (BEATS=%0d , VECT=%0d) ===", BEATS, VECT);
-
-        // reset 3?cycles
-        repeat (3) @(posedge clk);
-        rst_n = 1;
-
-        // main stimulus loop
-        for (i = 0; i < VECT; i = i + 1) begin
-            gold = 0;
-
-            // feed BEATS partial sums back-to-back
-            for (beat = 0; beat < BEATS; beat = beat + 1) begin
-                @(negedge clk);
-                partial_sum = $urandom_range(0, (1<<W_IN)-1);
-                gold        = gold + partial_sum;
-                in_valid    <= 1;
-
-                @(posedge clk);              // sample by DUT
-                in_valid    <= 0;            // clear immediately
+        fork
+            begin : TIMEOUT
+                // 100 ?s
+                #100_000;
+                $display("\n[TB] *** TIMEOUT - simulation did not finish in time ***\n");
+                $fatal;
             end
-
-            // wait for 1-cycle pulse of result_valid
-            @(posedge result_valid);  #0;    // make sure final_sum stable
-
-            // compare
-            if (final_sum !== gold) begin
-                $display("FAIL vec=%0d  EXP=%h  GOT=%h", i, gold, final_sum);
-                err = err + 1;
+            begin : PASS_WAIT
+                wait (u_tb1.done & u_tb2.done & u_tb4.done & u_tb8.done & u_tb16.done);
+                disable TIMEOUT;
+                $display("\n[TB] ALL ACCUMULATOR CONFIGS PASSED\n");
+                $finish;
             end
+        join
+    end
+endmodule
+
+// =============================================================================
+//  Sub-TB for a single LANES value (parameterised)
+// =============================================================================
+module tb_lane #(
+    parameter integer LANES     = 4,
+    parameter integer ELEMS     = 1000,
+    parameter integer INW_BASE  = 16
+)();
+    localparam integer STAGES = (LANES < 4) ? 2 : $clog2(LANES);
+    localparam integer W_IN   = INW_BASE + STAGES;          // 1/2/4¡ú18, 8¡ú19, 16¡ú20
+    localparam integer BEATS  = (ELEMS + LANES - 1) / LANES;
+    localparam integer W_ACC  = W_IN + $clog2(BEATS);       // guard bits
+
+    reg                    clk  = 0;
+    reg                    rst_n= 0;
+    reg                    in_valid = 0;
+    reg  [W_IN-1:0]        partial_sum = 0;
+    wire [W_ACC-1:0]       final_sum;
+    wire                   result_valid;
+
+    // ---------------- Clock 100 MHz --------------------------------------
+    always #5 clk = ~clk;
+
+    // ---------------- DUT -------------------------------------------------
+`ifdef USE_ACCUMULATOR
+    accumulator #(
+        .W_IN  (W_IN),
+        .BEATS (BEATS),
+        .W_ACC (W_ACC)
+    ) dut ( .clk(clk), .rst_n(rst_n), .in_valid(in_valid),
+             .partial_sum(partial_sum), .final_sum(final_sum),
+             .result_valid(result_valid) );
+`else
+    accumulator_var #(
+        .LANES    (LANES),
+        .ELEMS    (ELEMS),
+        .INW_BASE (INW_BASE)
+    ) dut ( .clk(clk), .rst_n(rst_n), .in_valid(in_valid),
+             .partial_sum(partial_sum), .final_sum(final_sum),
+             .result_valid(result_valid) );
+`endif
+
+    // ---------------- Stimulus & Reference -------------------------------
+    integer beat_cnt;
+    reg [W_ACC-1:0] ref_sum;
+    integer seed = 32'h1234 ^ LANES;   // ensure different per sub-TB
+
+    initial begin
+        // Reset phase
+        rst_n = 0;
+        @(posedge clk); rst_n = 1;
+
+        ref_sum   = 0;
+        beat_cnt  = 0;
+
+        // Feed BEATS samples
+        while (beat_cnt < BEATS) begin
+            @(posedge clk);
+            in_valid = 1;
+            // -------- boundary vectors first 4 beats -------------------
+            case (beat_cnt)
+                0: partial_sum = {W_IN{1'b0}};                           // all-0
+                1: partial_sum = {W_IN{1'b1}};                           // all-1
+                2: partial_sum = {{(W_IN-1){1'b0}}, 1'b1};              // 1
+                3: partial_sum = 1'b1 << (W_IN-1);                      // MSB only
+                default: partial_sum = $random(seed) & {W_IN{1'b1}};    // random
+            endcase
+
+            ref_sum  = ref_sum + partial_sum;
+            beat_cnt = beat_cnt + 1;
         end
 
-        // summary
-        if (err == 0)
-            $display("=== PASS : all %0d vectors matched ===", VECT);
-        else
-            $display("=== %0d mismatches detected ===", err);
-
-        $finish;
+        @(posedge clk); in_valid = 0;
     end
+
+    // ---------------- Checker -------------------------------------------
+    reg done_r = 0;
+    always @(posedge clk) begin
+        if (result_valid) begin
+            if (final_sum !== ref_sum) begin
+                $display("ERROR [LANES=%0d] : Expected %h , Got %h", LANES, ref_sum, final_sum);
+                $fatal;
+            end else begin
+                $display("ACC TB PASSED for LANES = %0d", LANES);
+                done_r <= 1'b1;
+            end
+        end
+    end
+
+    // ---------------- Done flag exported to top ---------------
+    wire done = done_r;
 endmodule
