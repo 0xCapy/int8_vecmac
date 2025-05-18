@@ -1,4 +1,4 @@
-// adder_tree4_piped.v £¨¸Ä³ÉÁ½ÅÄ£©
+// adder_tree4_piped. --- V2 2 latency (4-reg-2-reg-1)
 module adder_tree4 (
     input  wire        clk, rst_n,
     input  wire        in_valid,
@@ -6,8 +6,7 @@ module adder_tree4 (
     output wire        out_valid,
     output wire [17:0] sum
 );
-    // stage-1
-    (* keep = "true" *)reg [16:0] s0, s1;        // 17-bit
+    (* keep = "true" *)reg [16:0] s0, s1;
     (* keep = "true" *)reg        v1;
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
