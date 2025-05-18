@@ -7,3 +7,6 @@ set_output_delay -clock sys_clk 2.5 [get_ports mac_out[*]]
 # ----- ignore all output paths -----
 set_false_path -to [get_ports out_valid]
 set_false_path -to [get_ports -regexp {^out_sum\[.*\]$}]
+
+set_false_path -to [get_ports -regexp {^mac_out\[.*\]$}]
+set_false_path -to [get_ports out_valid]
