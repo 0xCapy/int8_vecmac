@@ -1,80 +1,94 @@
 `timescale 1ns/1ps
 module tb_mul4x8x8_wallace;
 
-    // ==== DUT ports ====
-    reg         clk = 0;
-    reg         rst_n = 0;
-    reg         in_valid = 0;
-    reg  [31:0] in_a = 0, in_b = 0;
-    wire        out_valid;
-    wire [17:0] out_sum;      // ★ 18-bit result
+   // ---- DUT ----
+   reg         clk = 0, rst_n = 0, in_valid = 0;
+   reg  [31:0] in_a  = 0, in_b = 0;
+   wire        out_valid;
+   wire [17:0] out_sum;
 
-    mul4x8x8_wallace dut (
-        .clk(clk), .rst_n(rst_n),
-        .in_valid(in_valid), .in_a(in_a), .in_b(in_b),
-        .out_valid(out_valid), .out_sum(out_sum)
-    );
+   mul4x8x8_wallace dut(
+      .clk(clk), .rst_n(rst_n), .in_valid(in_valid),
+      .in_a(in_a), .in_b(in_b), .out_valid(out_valid), .out_sum(out_sum)
+   );
 
-    // 100 MHz
-    always #5 clk = ~clk;
+   // 100 MHz clk
+   always #5 clk = ~clk;
 
-    // ==== test vectors ====
-    reg [31:0] vec_a[0:9], vec_b[0:9];
+   // ---------- golden FIFO (ring buffer) ----------
+   localparam DEPTH = 16384;       // 深度足够覆盖所有随机向量
+   reg [17:0] fifo_data [0:DEPTH-1];
+   reg [15:0] wr_ptr = 0, rd_ptr = 0;
+   integer    in_cnt = 0, out_cnt = 0, pass = 0, fail = 0;
 
-    // --- 8×8→16，再 4 个相加 → 18-bit ---
-    function automatic [17:0] gold_sum (
-        input [31:0] A, input [31:0] B
-    );
-        integer k;
-        reg [17:0] acc;       // 宽 18
-        reg [15:0] p;
-        begin
-            acc = 18'd0;
-            for (k = 0; k < 4; k = k + 1) begin
-                p = A[8*k +: 8] * B[8*k +: 8];
-                acc = acc + p;          // 自然扩位
-            end
-            gold_sum = acc;
-        end
-    endfunction
+   // ---------- reset ----------
+   initial begin
+      repeat (5) @(posedge clk);
+      rst_n = 1;
+   end
 
-    integer i;
-    reg [17:0] gold;
+   // ---------- stimulus ----------
+   task push_exp;
+      input [31:0] a, b;
+      reg   [7:0] a0,a1,a2,a3,b0,b1,b2,b3;
+      reg  [17:0] dot;
+   begin
+      {a3,a2,a1,a0} = a;
+      {b3,b2,b1,b0} = b;
+      dot = a0*b0 + a1*b1 + a2*b2 + a3*b3;
+      fifo_data[wr_ptr] = dot;
+      wr_ptr = wr_ptr + 1;
+   end
+   endtask
 
-    initial begin
-        // 向量 (与之前相同)
-        vec_a[0]=32'h00000000; vec_b[0]=32'h00000000;
-        vec_a[1]=32'hFFFFFFFF; vec_b[1]=32'hFFFFFFFF;
-        vec_a[2]=32'h000000FF; vec_b[2]=32'h000000FF;
-        vec_a[3]=32'hFF000000; vec_b[3]=32'h00FFFFFF;
-        vec_a[4]=32'h12345678; vec_b[4]=32'h87654321;
-        vec_a[5]=32'hD04C5281; vec_b[5]=32'h0F299FFB;
-        vec_a[6]=32'h1CC5BADC; vec_b[6]=32'h8997A3A3;
-        vec_a[7]=32'h8A0F2715; vec_b[7]=32'h3217491B;
-        vec_a[8]=32'hB1AB2EED; vec_b[8]=32'hF70AEFBB;
-        vec_a[9]=32'hB711705A; vec_b[9]=32'hC2B09C09;
+   task apply_vec;
+      input [31:0] a,b;
+   begin
+      @(posedge clk);
+      in_valid <= 1; in_a <= a; in_b <= b;
+      push_exp(a,b); in_cnt = in_cnt + 1;
+      @(posedge clk);
+      in_valid <= 0;
+   end
+   endtask
 
-        $display("\n=== 4×8×8 Wallace + Adder-Tree TB ===");
-        rst_n = 0; repeat(3) @(posedge clk); rst_n = 1;
+   initial begin : STIM
+      wait (rst_n);
 
-        for (i = 0; i < 10; i = i + 1) begin
-            @(negedge clk);
-            in_a = vec_a[i];  in_b = vec_b[i];
-            in_valid = 1;
-            gold = gold_sum(vec_a[i], vec_b[i]);
-            @(negedge clk) in_valid = 0;
+      // 5 boundary
+      apply_vec(32'h0000_0000, 32'h0000_0000);
+      apply_vec(32'hFFFF_FFFF, 32'hFFFF_FFFF);
+      apply_vec(32'h0000_00FF, 32'h0000_00FF);
+      apply_vec(32'hFF00_0000, 32'h00FF_FFFF);
+      apply_vec(32'h1234_5678, 32'h8765_4321);
 
-            wait (out_valid); @(posedge clk);
+      // 10 000 random
+      repeat (10000) begin
+         @(posedge clk);
+         if ($random % 2) begin
+            apply_vec($random, $random);
+         end
+      end
 
-            if (out_sum !== gold) begin
-                $display("FAIL  idx=%0d A=%h B=%h  DUT=%h  GOLD=%h",
-                         i, vec_a[i], vec_b[i], out_sum, gold);
-            end else begin
-                $display(" PASS idx=%0d -- 0x%05h", i, out_sum);
-            end
-            repeat(2) @(posedge clk);
-        end
-        $display("=== All done ===");
-        $finish;
-    end
+      // drain
+      wait (out_cnt == in_cnt);
+      #20;
+      $display("PASS=%0d  FAIL=%0d", pass, fail);
+      $finish;
+   end
+
+   // ---------- checker ----------
+   always @(posedge clk) begin
+      if (out_valid) begin
+         if (out_sum === fifo_data[rd_ptr]) begin
+            pass = pass + 1;
+         end else begin
+            $display("Mismatch @%0t  exp=%0d got=%0d",
+                     $time, fifo_data[rd_ptr], out_sum);
+            fail = fail + 1;
+         end
+         rd_ptr = rd_ptr + 1;
+         out_cnt = out_cnt + 1;
+      end
+   end
 endmodule
