@@ -1,70 +1,85 @@
 `timescale 1ns/1ps
 // ============================================================================
-//  vector_mac_top_param
-//  ? ACTIVE_LANES = 1  ¡ú  synthesize only 1-MAC core
-//  ? ACTIVE_LANES = 4  ¡ú  synthesize only 4-MAC core
-//  ? other values      ¡ú  output fixed zero (placeholder)
+//  vector_mac_top_param - compile-time lane select (1 / 4 / 16)
+//  ? set parameter ACTIVE_LANES = 1 | 4 | 16  before synthesis
+//  ? vec_a / vec_b : 128-bit (lower for 1 and 4
 // ============================================================================
 module vector_mac_top_param #(
     parameter integer ELEMS        = 1000,   // vector length
-    parameter integer ACTIVE_LANES = 4       // **set to 1 or 4 before impl**
+    parameter integer ACTIVE_LANES = 8       // 1 or 4 or 8 or 16
 )(
-    input  wire        clk,
-    input  wire        rst_n,       // async low
-    input  wire        vec_valid,
-    input  wire [31:0] vec_a,
-    input  wire [31:0] vec_b,
-    output wire        result_valid,
-    output wire [31:0] result_sum
+    input  wire           clk,
+    input  wire           rst_n,
+    input  wire           vec_valid,
+    input  wire [127:0]   vec_a,
+    input  wire [127:0]   vec_b,
+    output wire           result_valid,
+    output wire [31:0]    result_sum
 );
 
     // ------------------------------------------------------------------------
-    // choose one MAC core according to ACTIVE_LANES
+    // 1. instantiate only the selected MAC core
     // ------------------------------------------------------------------------
-    wire        core_valid;
+    wire        core_vld;
     wire [19:0] core_sum;
 
 generate
-    if (ACTIVE_LANES == 1) begin : g_mac1
-        // ---------- 1-lane core ----------
-        mul1x8x8_wallace u_core1 (
+    if (ACTIVE_LANES == 1) begin : G_MAC1
+        mul1x8x8_wallace u_core (
+            .clk(clk), .rst_n(rst_n),
+            .in_valid (vec_valid),
+            .in_a     (vec_a[7:0]),
+            .in_b     (vec_b[7:0]),
+            .out_valid(core_vld),
+            .out_sum  (core_sum[17:0])
+        );
+        assign core_sum[19:18] = 2'b0;
+    end
+    else if (ACTIVE_LANES == 4) begin : G_MAC4
+        mul4x8x8_wallace u_core (
+            .clk(clk), .rst_n(rst_n),
+            .in_valid (vec_valid),
+            .in_a     (vec_a[31:0]),
+            .in_b     (vec_b[31:0]),
+            .out_valid(core_vld),
+            .out_sum  (core_sum[17:0])
+        );
+        assign core_sum[19:18] = 2'b0;
+    end
+    else if (ACTIVE_LANES == 8) begin : G_MAC8
+        mul8x8x8_wallace u_core (
+            .clk(clk), .rst_n(rst_n),
+            .in_valid (vec_valid),
+            .in_a     (vec_a[63:0]),
+            .in_b     (vec_b[63:0]),
+            .out_valid(core_vld),
+            .out_sum  (core_sum[18:0])
+        );
+        assign core_sum[19] = 1'b0;
+    end
+    else if (ACTIVE_LANES == 16) begin : G_MAC16
+        mul16x8x8_wallace u_core (
             .clk(clk), .rst_n(rst_n),
             .in_valid (vec_valid),
             .in_a     (vec_a),
             .in_b     (vec_b),
-            .out_valid(core_valid),
-            .out_sum  (core_sum[17:0])
+            .out_valid(core_vld),
+            .out_sum  (core_sum)
         );
-        assign core_sum[19:18] = 2'b00;
     end
-    else if (ACTIVE_LANES == 4) begin : g_mac4
-        // ---------- 4-lane core ----------
-        mul4x8x8_wallace u_core4 (
-            .clk(clk), .rst_n(rst_n),
-            .in_valid (vec_valid),
-            .in_a     (vec_a),
-            .in_b     (vec_b),
-            .out_valid(core_valid),
-            .out_sum  (core_sum[17:0])
-        );
-        assign core_sum[19:18] = 2'b00;
-    end
-    else begin : g_stub
-        // ---------- placeholder ----------
-        assign core_valid = 1'b0;
-        assign core_sum   = 20'd0;
+    else begin : G_DUMMY 
+        assign core_vld = vec_valid;
+        assign core_sum = 20'd0;
     end
 endgenerate
 
     // ------------------------------------------------------------------------
-    // accumulator (already fixed beats_max bug)
+    // 2. accumulator (beats = ceil(ELEMS / ACTIVE_LANES))
     // ------------------------------------------------------------------------
-    accumulator_var #(
-        .ELEMS(ELEMS)
-    ) u_acc (
+    accumulator_var #(.ELEMS(ELEMS)) u_acc (
         .clk         (clk),
         .rst_n       (rst_n),
-        .in_valid    (core_valid),
+        .in_valid    (core_vld),
         .partial_sum (core_sum),
         .lanes_i     (ACTIVE_LANES[4:0]),
         .final_sum   (result_sum),

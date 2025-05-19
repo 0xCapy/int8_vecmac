@@ -1,153 +1,145 @@
 `timescale 1ns/1ps
 // ============================================================================
-//  tb_vector_mac_param_full - pure Verilog-2001 thorough testbench
-//  ? CLK : 200 MHz  (#2.5 ns half-period)
-//  ? ELEMS constant  = 1000
-//  ? ACTIVE_LANES param selects 1-MAC or 4-MAC implementation
-// ======================================================================
+//  tb_vector_mac_param  -  vector-level checker for vector_mac_top_param
+//  ? LANE_P = 1 | 4 | 16  (compile-time switch)
+//  ? ELEMS  = vector length (default 1000)
+//  ? BUSW   = 128-bit (16¡ÁINT8 packed)
+// ============================================================================
+module tb_vector_mac_param;
 
-module tb_vector_mac_param_full;
+    // ---------- choose MAC version ----------
+    parameter integer LANE_P = 8;          // 1 or 4 or 8 or 16 for diff macs
 
-    // -----------------------------------------------------------------
-    // *** choose implementation under test ***
-    // -------------------------------------------------------------------------
-    parameter integer ACTIVE_LANES = 4;    // Choose your macs
+    // ---------- constants ----------
+    parameter integer ELEMS  = 1000;
+    parameter integer BUSW   = 128;
+    parameter integer DEPTH  = 4096;       // FIFO depth
+    parameter integer RAND_VEC = 100;   
 
-    // ----------------------------------------------------------------
-    // constants
-    // ----------------------------------------------------------------------
-    parameter integer ELEMS = 1000;
+    // ---------- clock & reset ----------
+    reg clk = 0;            always #2.5 clk = ~clk;   // 200 MHz
+    reg rst_n = 0;
 
-    // ------------------------------------------------------------------------
-    // 200 MHz clock & async reset
-    reg clk = 1'b0;
-    always #2.5 clk = ~clk;                // 200 MHz
-
-    reg rst_n;
-
-    // -------------------------------------------------------------------------
-    // DUT signals
-    // ------------------------------------------------------------------
-    reg           vec_valid;
-    reg  [31:0]   vec_a;
-    reg  [31:0]   vec_b;
-    wire          result_valid;
-    wire [31:0]   result_sum;
+    // ---------- DUT ----------
+    reg              vec_valid = 0;
+    reg  [BUSW-1:0]  vec_a     = 0;
+    reg  [BUSW-1:0]  vec_b     = 0;
+    wire             result_valid;
+    wire [31:0]      result_sum;
 
     vector_mac_top_param #(
         .ELEMS        (ELEMS),
-        .ACTIVE_LANES (ACTIVE_LANES)
+        .ACTIVE_LANES (LANE_P)
     ) dut (
-        .clk          (clk),
-        .rst_n        (rst_n),
-        .vec_valid    (vec_valid),
-        .vec_a        (vec_a),
-        .vec_b        (vec_b),
-        .result_valid (result_valid),
-        .result_sum   (result_sum)
+        .clk(clk), .rst_n(rst_n),
+        .vec_valid(vec_valid),
+        .vec_a(vec_a), .vec_b(vec_b),
+        .result_valid(result_valid),
+        .result_sum(result_sum)
     );
 
-    // ------------------------------------------------------------------
-    // monitor - catch single-cycle result_valid
-    // -------------------------------------------------------------------------
-    reg        done_flag;
-    reg [31:0] golden_sum;
-
-    always @(posedge clk) begin
-        if (result_valid) begin
-            if (result_sum !== golden_sum) begin
-                $display("### FAIL  lanes=%0d  dut=%h  gold=%h",
-                         ACTIVE_LANES, result_sum, golden_sum);
-                $stop;
-            end
-            else
-                $display("### PASS  lanes=%0d  sum=%h",
-                         ACTIVE_LANES, result_sum);
-            done_flag <= 1'b1;
-        end
-        else
-            done_flag <= 1'b0;
+    // ---------- lane mask (active bytes = 1) ----------
+    reg [BUSW-1:0] lane_mask;
+    integer mi;
+    initial begin
+        lane_mask = {BUSW{1'b0}};
+        for (mi = 0; mi < LANE_P; mi = mi + 1)
+            lane_mask[mi*8 +: 8] = 8'hFF;
     end
 
-    // --------------------------------------------------------------------
-    // task : drive one vector (idle_cycles = 0 / 1)
-    // randomize = 1  ¡ú random data
-    // randomize = 0  ¡ú use pattern_a / pattern_b
-    // -------------------------------------------------------------------
-    integer beats, idx, i;
-    reg [17:0] prod;
+    // ---------- ring-buffer FIFO ----------
+    reg [31:0] fifo_data [0:DEPTH-1];
+    reg [11:0] wr_ptr = 0, rd_ptr = 0;
+    integer in_vec_cnt = 0, out_vec_cnt = 0, pass = 0, fail = 0;
+
+    // ---------- reset release ----------
+    initial begin
+        repeat (5) @(posedge clk);
+        rst_n = 1;
+    end
+
+    // ---------- drive one vector ----------
     task drive_vector;
-        input [31:0] pattern_a;
-        input [31:0] pattern_b;
-        input integer randomize;
-        input integer idle_cycles;
-        reg [31:0] va_tmp, vb_tmp;
+        input integer pattern_sel;
+        integer beats, bt, ln;
+        reg [BUSW-1:0] a_beat, b_beat;
+        reg [31:0]     vec_sum;
     begin
-        beats = (ELEMS + ACTIVE_LANES - 1) / ACTIVE_LANES;
-        golden_sum = 0;
+        beats   = (ELEMS + LANE_P - 1) / LANE_P;
+        vec_sum = 0;
 
-        for (idx = 0; idx < beats; idx = idx + 1) begin
-            // choose data
-            if (randomize)
-                begin va_tmp = $random; vb_tmp = $random; end
-            else
-                begin va_tmp = pattern_a; vb_tmp = pattern_b; end
+        for (bt = 0; bt < beats; bt = bt + 1) begin
+            case (pattern_sel)
+                0: begin a_beat = 0;              b_beat = 0;              end
+                1: begin a_beat = lane_mask;      b_beat = lane_mask;      end
+                2: begin a_beat = lane_mask & {BUSW{1'b1}};   // all FF in active bytes
+                   b_beat = a_beat; end
+                3: begin a_beat = lane_mask & (bt & 1 ? 128'h00 : 128'hFF); // Chansfer
+                   b_beat = ~a_beat & lane_mask; end
+                4: begin a_beat = lane_mask & 128'h0123_4567_89AB_CDEF_FEDC_BA98_7654_3210;
+                   b_beat = lane_mask & 128'h89AB_CDEF_0123_4567_7654_3210_FEDC_BA98; end
+                default: begin                  // random
+                   a_beat = {4{$random}} & lane_mask;
+                   b_beat = {4{$random}} & lane_mask;
+                end
+            endcase
 
-            // golden model
-            if (ACTIVE_LANES == 1) begin
-                prod        = va_tmp[7:0] * vb_tmp[7:0];
-                golden_sum  = golden_sum + prod;
-            end
-            else begin                               // 4-lanes
-                prod = 0;
-                for (i = 0; i < 4; i = i + 1)
-                    prod = prod + va_tmp[i*8 +: 8] * vb_tmp[i*8 +: 8];
-                golden_sum = golden_sum + prod;
-            end
+            // ---- accumulate vector golden ----
+            for (ln = 0; ln < LANE_P; ln = ln + 1)
+                vec_sum = vec_sum +
+                          a_beat[ln*8 +: 8] * b_beat[ln*8 +: 8];
 
-            // drive beat
+            // ---- drive beat ----
             @(posedge clk);
-            vec_valid <= 1'b1;
-            vec_a     <= va_tmp;
-            vec_b     <= vb_tmp;
-
-            @(posedge clk);
-            if (idle_cycles) vec_valid <= 1'b0;      // insert gap
+            vec_valid <= 1'b1;  vec_a <= a_beat;  vec_b <= b_beat;
         end
 
-        @(posedge clk) vec_valid <= 1'b0;
-
-        // wait monitor
-        wait (done_flag);
+        // pull valid low & idle one cycle
         @(posedge clk);
+        vec_valid <= 1'b0;
+
+        // ---- push expected to FIFO ----
+        fifo_data[wr_ptr] = vec_sum;
+        wr_ptr = wr_ptr + 1;
+        in_vec_cnt = in_vec_cnt + 1;
     end
     endtask
 
-    // -------------------------------------------------------------------------
-    // test sequence
-    // ---------------------------------------------------------------
-    integer s;
-    initial begin
-        // async reset glitch
-        rst_n = 1'b1;
-        #1 rst_n = 1'b0;
-        repeat (3) @(posedge clk);
-        rst_n = 1'b1;
+    // ---------- stimulus ----------
+    integer rv;
+    initial begin : STIM
+        wait (rst_n);
 
-        // directed boundary tests
-        drive_vector(32'h00000000, 32'h00000000, 0, 1); // all-zero
-        drive_vector(32'hFFFFFFFF, 32'hFFFFFFFF, 0, 1); // all-255
-        drive_vector(32'hFF00FF00, 32'h00FF00FF, 0, 1); // alt pattern
+        // 5 directed vectors
+        drive_vector(0);
+        drive_vector(1);
+        drive_vector(2);
+        drive_vector(3);
+        drive_vector(4);
 
-        // back-to-back (0 idle)
-        drive_vector(32'h00000000, 32'h00000000, 0, 0);
+        // random vectors
+        for (rv = 0; rv < RAND_VEC; rv = rv + 1)
+            drive_vector(-1);
 
-        // random stress (20 vectors)
-        for (s = 0; s < 20; s = s + 1)
-            drive_vector(32'h0, 32'h0, 1, 1);
-
-        $display("\n=== ALL TESTS PASSED ===");
+        // wait until all results checked
+        wait (out_vec_cnt == in_vec_cnt);
+        #50;
+        $display("PASS=%0d  FAIL=%0d", pass, fail);
         $finish;
     end
 
+    // ---------- checker ----------
+    always @(posedge clk) begin
+        if (result_valid) begin
+            if (result_sum === fifo_data[rd_ptr])
+                pass = pass + 1;
+            else begin
+                $display("Mismatch @%0t  exp=%0d  got=%0d",
+                         $time, fifo_data[rd_ptr], result_sum);
+                fail = fail + 1;
+            end
+            rd_ptr = rd_ptr + 1;
+            out_vec_cnt = out_vec_cnt + 1;
+        end
+    end
 endmodule
