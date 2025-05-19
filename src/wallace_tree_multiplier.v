@@ -1,6 +1,8 @@
 `timescale 1ns/1ps
 // ===========================================================================
-//  Half- & Full-Adder
+//  Discription : This file provides unit multiplier design - 3 layer wallace tree, including adder
+// Author: Hubo
+// ===========================================================================
 module ha(input wire a, b, output wire s, c);
     assign s = a ^ b;
     assign c = a & b;
@@ -10,20 +12,18 @@ module fa(input wire a, b, cin, output wire s, cout);
     assign s    = a ^ b ^ cin;
     assign cout = (a & b) | (a & cin) | (b & cin);
 endmodule
-
-// ===============================================
 // 8 x 8 Wallace Tree multiplier - 3-stage pipeline, no DSP
 (* use_dsp = "no" *)
 module wallace_mult8 (
     input  wire        clk,
-    input  wire        rst_n,      // active-low reset
+    input  wire        rst_n,
     input  wire        in_valid,
     input  wire [7:0]  a,
     input  wire [7:0]  b,
     output wire        out_valid,
     output wire [15:0] product
 );
-    // ---------------- constants -------------------------------------------
+    // ---------------- constants ----------------
     localparam W = 17;             // 16 bits + 1 carry bit
 
 // 0) Partial products 
@@ -72,7 +72,7 @@ module wallace_mult8 (
             v1 <= 1'b0;
         end
     end
-    // ---------------- 2) layer-2 : 6 to 4 rows -----------------
+    // ---------------- 2) layer-2 : 6 to 4 rows ---------
     wire [W-1:0] l2s0,l2s1,l2c0,l2c1;
     generate
         for (gj = 0; gj < W-1; gj = gj + 1) begin : L2
@@ -86,7 +86,7 @@ module wallace_mult8 (
     assign l2s1[W-1] = r1c0[W-1] ^ r1c1[W-1] ^ r1c2[W-1];
     assign {l2c0[0],l2c1[0]} = 2'b00;
 
-    // -------- P2 registers -------------------------------------------------
+    // -------- P2 registers -----------------
     reg [W-1:0] r2s0,r2s1,r2c0,r2c1;
     reg         v2;
     always @(posedge clk or negedge rst_n) begin
@@ -116,7 +116,7 @@ module wallace_mult8 (
     wire [17:0] final18 = {1'b0, s3}
                        +  c3 
                        +  r2c1;  
-    // -------- P3 registers & outputs --------------------------------
+    // -------- P3 registers & outputs ------
     reg [15:0] product_r;
     reg        v3;
     always @(posedge clk or negedge rst_n) begin
@@ -130,5 +130,5 @@ module wallace_mult8 (
         end
     end
     assign product   = product_r;
-    assign out_valid = v3;   // 3-cycle latency
+    assign out_valid = v3;   // 3-cycle latency(2 between layers 1 for output)
 endmodule

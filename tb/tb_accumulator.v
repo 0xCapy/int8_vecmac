@@ -1,27 +1,23 @@
 `timescale 1ns/1ps
 // =============================================================================
 //  tb_accumulator_var 
-//  ycles lanes_i through 1 / 2 / 4 / 8 / 16
-// =============================================================================
+//  Descriptioon: This file test the accumulator with different lines situation which maches top integrating (1/4/8/16Macs)
+//  ycles lanes_i through 1 / 2 / 4 / 8 / 16 --I didnt implement 2 actually cuz i think it's un necessary - only little diff between 1 and 4
+// Author: Hubo 17/05/2025
+//=============================================================================
 module tb_accumulator_var;
-    //--------------------------------------------------------------------
     // DUT
-    //--------------------------------------------------------------------
     localparam integer ELEMS  = 1000;   // elements per vector
     localparam integer W_IN   = 20;     // partial_sum width
     localparam integer W_ACC  = 32;     // accumulator width
-
-    //--------------------------------------------------------------------
-    // Clock & reset
-    //--------------------------------------------------------------------
+    //CLK
     reg clk = 0;
     always #5 clk = ~clk;
 
     reg rst_n = 0;
 
     //--------------------------------------------------------------------
-    // DUT I/O
-    //--------------------------------------------------------------------
+    // handshake
     reg               in_valid     = 0;
     reg  [W_IN-1:0]   partial_sum  = 0;
     reg  [4:0]        lanes_i      = 5'd1;     // 1 /2 /4 /8 /16
@@ -44,7 +40,6 @@ module tb_accumulator_var;
 
     //--------------------------------------------------------------------
     // Stimulus helpers
-    //--------------------------------------------------------------------
     integer beats, beat;
     reg [W_ACC-1:0] golden;
     integer pass = 0, fail = 0;
@@ -56,11 +51,10 @@ module tb_accumulator_var;
         integer stride;
         reg [W_IN-1:0] ps;      // partial_sum of current beat
     begin
-        //---------------- reset ----------------
+        //---------------- reset ---
         rst_n    <= 0; in_valid <= 0; partial_sum <= 0;
         repeat (5) @(posedge clk);
         rst_n    <= 1;
-        //----------------------------------------------------------------
         lanes_i  <= lane_cnt;
         stride   = lane_cnt;                       // stride = lanes
         beats    = (ELEMS + stride - 1) / stride;  // ceil(ELEMS/stride)
@@ -68,7 +62,6 @@ module tb_accumulator_var;
         golden   = 0;
         //----------------------------------------------------------------
         // drive beats
-        //----------------------------------------------------------------
         for (beat = 0; beat < beats; beat = beat + 1) begin
             @(posedge clk);
             // generate one unsigned partial_sum (max 20?bit)
@@ -105,7 +98,6 @@ module tb_accumulator_var;
 
     //--------------------------------------------------------------------
     // Main test sequence
-    //--------------------------------------------------------------------
     integer lc, cid;
     initial begin
         for (lc = 0; lc < 5; lc = lc + 1) begin
@@ -114,8 +106,10 @@ module tb_accumulator_var;
         end
 
         $display("-----------------------------------------------");
-        $display("TOTAL PASS = %0d  FAIL = %0d", pass, fail);
-        $display("-----------------------------------------------");
+        $display("******TOTAL PASS (1000elements in each) = %0d  FAIL = %0d***", pass, fail);
+        if (fail == 0) begin
+            $display("*****All tests passed***");
+        end
         $finish;
     end
 endmodule

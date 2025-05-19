@@ -1,7 +1,8 @@
-// ===========================================================================
-// Author : Hubo     Platform : Vivado 2021.1
-// ===========================================================================
 `timescale 1ns/1ps
+// ===========================================================================
+//  Discription : This file provides integrating MAC design - 4 Macs version - 4x8x8
+// Author: Hubo
+// ===========================================================================
 (* use_dsp = "no" *)
 module mul4x8x8_wallace
 (
@@ -18,16 +19,13 @@ module mul4x8x8_wallace
 );
 
 // ------------------------------------------------------------------
-// 1. slice 4��8-bit
-// ------------------------------------------------------------------
+// 1. ------------slice
 wire [7:0] a0 = in_a[ 7: 0], a1 = in_a[15: 8],
            a2 = in_a[23:16], a3 = in_a[31:24];
 wire [7:0] b0 = in_b[ 7: 0], b1 = in_b[15: 8],
            b2 = in_b[23:16], b3 = in_b[31:24];
 
-// ------------------------------------------------------------------
-// 2.  Four 8��8 multipliers (3-cycle latency each)
-// ------------------------------------------------------------------
+// 2.  -------Four multipliers----
 wire [15:0] p0, p1, p2, p3;
 wire        v0, v1, v2, v3;
 wallace_mult8 u0 (.clk(clk), .rst_n(rst_n), .in_valid(in_valid), .a(a0), .b(b0), .out_valid(v0), .product(p0));
@@ -35,9 +33,7 @@ wallace_mult8 u1 (.clk(clk), .rst_n(rst_n), .in_valid(in_valid), .a(a1), .b(b1),
 wallace_mult8 u2 (.clk(clk), .rst_n(rst_n), .in_valid(in_valid), .a(a2), .b(b2), .out_valid(v2), .product(p2));
 wallace_mult8 u3 (.clk(clk), .rst_n(rst_n), .in_valid(in_valid), .a(a3), .b(b3), .out_valid(v3), .product(p3));
 
-// ------------------------------------------------------------------
-// 3.  1-cycle align register
-// ------------------------------------------------------------------
+// 3.  ------------------------1-cycle align register
 reg [15:0] p0_r, p1_r, p2_r, p3_r;
 reg        v_r;
 always @(posedge clk or negedge rst_n) begin
@@ -49,10 +45,8 @@ always @(posedge clk or negedge rst_n) begin
     end
 end
 
-// ------------------------------------------------------------------
-// 4.  NEW! adder_tree_var -> adjust to 4 lane
-// ------------------------------------------------------------------
-wire [63:0] prod_bus = {p3_r, p2_r, p1_r, p0_r};   // 4��16 �� 64
+// 4. --------adder_tree_var -> adjust to 4 lane
+wire [63:0] prod_bus = {p3_r, p2_r, p1_r, p0_r};
 wire [17:0] sum18;
 adder_tree_var #(
     .LANES (4),

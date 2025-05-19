@@ -1,9 +1,9 @@
 `timescale 1ns/1ps
-// ============================================================================
-//  vector_mac_top_param - compile-time lane select (1 / 4 / 16)
-//  ? set parameter ACTIVE_LANES = 1 | 4 | 16  before synthesis
-//  ? vec_a / vec_b : 128-bit (lower for 1 and 4
-// ============================================================================
+// ===========================================================================
+//  Discription : This file provides top layeer for all design
+// How to use? By switching 'ACTIVE_LINE' in 1.4.8.16 to try different design - 1-16MACs
+// Author: Hubo
+// ===========================================================================
 module vector_mac_top_param #(
     parameter integer ELEMS        = 1000,   // vector length
     parameter integer ACTIVE_LANES = 8       // 1 or 4 or 8 or 16
@@ -17,9 +17,7 @@ module vector_mac_top_param #(
     output wire [31:0]    result_sum
 );
 
-    // ------------------------------------------------------------------------
-    // 1. instantiate only the selected MAC core
-    // ------------------------------------------------------------------------
+    // ---------------1. instantiate only the selected MAC core
     wire        core_vld;
     wire [19:0] core_sum;
 
@@ -72,10 +70,7 @@ generate
         assign core_sum = 20'd0;
     end
 endgenerate
-
-    // ------------------------------------------------------------------------
-    // 2. accumulator (beats = ceil(ELEMS / ACTIVE_LANES))
-    // ------------------------------------------------------------------------
+    // ------------------------2. accumulator (beats = ceil(ELEMS / ACTIVE_LANES))
     accumulator_var #(.ELEMS(ELEMS)) u_acc (
         .clk         (clk),
         .rst_n       (rst_n),

@@ -1,4 +1,8 @@
 `timescale 1ns/1ps
+// ===========================================================================
+//  Discription : This file provides integrating MAC design - 1 single Mac version - 1x8x8
+// Author: Hubo
+// ===========================================================================
 (* use_dsp = "no" *)
 module mul1x8x8_wallace
 (
@@ -14,11 +18,11 @@ module mul1x8x8_wallace
 `endif
 );
 
-    // -------- Lowest 8 bits----------------------------------
+    // -------- Lowest 8 bits-------
     wire [7:0] a0 = in_a[7:0];
     wire [7:0] b0 = in_b[7:0];
 
-    // -------- 8×8 Wallace ---------------------------
+    // --------Wallace ---------------------------
     wire [15:0] p0;
     wire        v0;
     wallace_mult8 u0 (
@@ -26,7 +30,7 @@ module mul1x8x8_wallace
         .a(a0), .b(b0), .out_valid(v0), .product(p0)
     );
 
-    // -------- 1-lane adder_tree (pass-through, 2 regs) -----------------
+    // -------- 1-lane adder_tree (pass-through, 2 regs) ------
     wire [17:0] sum18;
     adder_tree_var #(
         .LANES (1),       // Switch LANES=1

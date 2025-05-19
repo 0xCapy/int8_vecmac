@@ -1,14 +1,14 @@
 `timescale 1ns/1ps
 // ============================================================================
 //  tb_vector_mac_param  -  vector-level checker for vector_mac_top_param
-//  ? LANE_P = 1 | 4 | 16  (compile-time switch)
-//  ? ELEMS  = vector length (default 1000)
-//  ? BUSW   = 128-bit (16¡ÁINT8 packed)
+//  Discription : This file test top design
+//  ********How to use? -- By switiching "LANE_P" from 1/4/8/16, it will automatically test corespond design.
+//  Author: Hubo 17/05/2025
 // ============================================================================
-module tb_vector_mac_param;
+module tb_vector_mac_top_para;
 
     // ---------- choose MAC version ----------
-    parameter integer LANE_P = 8;          // 1 or 4 or 8 or 16 for diff macs
+    parameter integer LANE_P = 1;          // 1 or 4 or 8 or 16 for diff macs
 
     // ---------- constants ----------
     parameter integer ELEMS  = 1000;
@@ -125,6 +125,9 @@ module tb_vector_mac_param;
         wait (out_vec_cnt == in_vec_cnt);
         #50;
         $display("PASS=%0d  FAIL=%0d", pass, fail);
+        if (fail == 0) begin
+            $display("*****All tests passed for %0dx8x8 design***", LANE_P );
+        end
         $finish;
     end
 
