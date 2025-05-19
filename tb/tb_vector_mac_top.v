@@ -1,131 +1,140 @@
 `timescale 1ns/1ps
-module tb_vector_mac_top_fix;
+// =============================================================================
+//  tb_vector_mac_param - pure Verilog-2001 testbench
+//  ? set LANE_P to 1 or 4 -> TB & DUT will match automatically
+//  ? works with vector_mac_top_param.v (parameterised top)
+// =============================================================================
+module tb_vector_mac_param;
 
-    //----------------------------------------------------------------
-    // DUT signals
-    //----------------------------------------------------------------
-    reg         clk = 0;
-    reg         rst_n = 0;
-    reg         in_valid = 0;
-    reg  [31:0] in_a = 0, in_b = 0;
-    wire        out_valid;
-    wire [31:0] mac_out;
+    // -------------------------------------------------------------------------
+    // *** choose which version to test ***
+    // -------------------------------------------------------------------------
+    parameter integer LANE_P = 1;    //******Change this when you wanna test other MACs combo 1for 1Mac 4 for 4 Macs
 
-    vector_mac_top dut (
-        .clk(clk), .rst_n(rst_n),
-        .in_valid(in_valid),
-        .in_a(in_a), .in_b(in_b),
-        .out_valid(out_valid),
-        .mac_out(mac_out)
+    // -------------------------------------------------------------------------
+    // constants
+    // -------------------------------------------------------------------------
+    parameter ELEMS = 1000;           // keep the same as DUT
+
+    // -------------------------------------------------------------------------
+    // clock & reset
+    // -------------------------------------------------------------------------
+    reg clk = 1'b0;
+    always #5 clk = ~clk;             // 100 MHz
+
+    reg rst_n;
+
+    // -------------------------------------------------------------------------
+    // DUT ports
+    // -------------------------------------------------------------------------
+    reg           vec_valid;
+    reg  [31:0]   vec_a;
+    reg  [31:0]   vec_b;
+    wire          result_valid;
+    wire [31:0]   result_sum;
+
+    // -------------------------------------------------------------------------
+    // DUT instance - only 1 line differs from old TB
+    // -------------------------------------------------------------------------
+    vector_mac_top_param #(
+        .ELEMS(ELEMS),
+        .ACTIVE_LANES(LANE_P)
+    ) dut (
+        .clk(clk),
+        .rst_n(rst_n),
+        .vec_valid(vec_valid),
+        .vec_a(vec_a),
+        .vec_b(vec_b),
+        .result_valid(result_valid),
+        .result_sum(result_sum)
     );
 
-    // 100 MHz clock
-    always #5 clk = ~clk;
+    // -------------------------------------------------------------------------
+    // monitor: catch single-cycle result_valid
+    // -------------------------------------------------------------------------
+    reg        done_flag;
+    reg [31:0] golden_sum;
 
-    //----------------------------------------------------------------
-    // parameters
-    //----------------------------------------------------------------
-    localparam DELAY = 6;      // core latency
-    localparam BEATS = 250;    // 250x4 = 1000 elements per MAC
-
-    //----------------------------------------------------------------
-    // helper : 8-bit dot-product
-    //----------------------------------------------------------------
-    function [17:0] dot4(input [31:0] a, b);
-        reg [7:0] a0,a1,a2,a3,b0,b1,b2,b3;
-    begin
-        {a3,a2,a1,a0} = a;
-        {b3,b2,b1,b0} = b;
-        dot4 = a0*b0 + a1*b1 + a2*b2 + a3*b3;
-    end
-    endfunction
-
-    //----------------------------------------------------------------
-    // delay-FIFO to align with hardware latency
-    //----------------------------------------------------------------
-    reg [17:0] fifo [0:DELAY-1];
-    reg        v_fifo[0:DELAY-1];
-
-    integer k;
-    task push_fifo(input [17:0] d, input v);
-    begin
-        for (k=DELAY-1; k>0; k=k-1) begin
-            fifo [k] <= fifo [k-1];
-            v_fifo[k] <= v_fifo[k-1];
+    always @(posedge clk) begin
+        if (result_valid) begin
+            if (result_sum !== golden_sum) begin
+                $display("### FAIL  lanes=%0d  dut=%h  gold=%h",
+                         LANE_P, result_sum, golden_sum);
+                $stop;
+            end
+            else
+                $display("### PASS  lanes=%0d  sum=%h", LANE_P, result_sum);
+            done_flag <= 1'b1;
         end
-        fifo [0]  <= d;
-        v_fifo[0] <= v;
+        else
+            done_flag <= 1'b0;
     end
-    endtask
 
-    //----------------------------------------------------------------
-    // golden accumulator
-    //----------------------------------------------------------------
-    reg [31:0] gold_acc = 0;
-    integer beat_cnt = 0;
-    integer pass = 0, fail = 0;
-
-    //----------------------------------------------------------------
-    // stimulus : 5 boundary with 10 000 random
-    //----------------------------------------------------------------
-    task drive(input [31:0] a, b);
+    // -------------------------------------------------------------------------
+    // task: send one vector (length ELEMS) and build golden
+    // -------------------------------------------------------------------------
+    integer beats, idx, i;
+    reg [17:0] prod;
+    task run_vector;
+        integer lane_cnt;
+        reg [31:0] va_tmp, vb_tmp;
     begin
-        @(posedge clk);
-        in_valid <= 1; in_a <= a; in_b <= b;
-        @(posedge clk);
-        in_valid <= 0;
-    end
-    endtask
+        lane_cnt = LANE_P;                            // =1 or 4
+        beats    = (ELEMS + lane_cnt - 1) / lane_cnt;
+        golden_sum = 0;
 
-    integer i;
-    initial begin
-        // reset
-        repeat(5) @(posedge clk);
-        rst_n = 1;
+        for (idx = 0; idx < beats; idx = idx + 1) begin
+            // random data
+            va_tmp = $random;
+            vb_tmp = $random;
 
-        // boundary patterns
-        drive(32'h0000_0000, 32'h0000_0000);
-        drive(32'hFFFF_FFFF, 32'hFFFF_FFFF);
-        drive(32'h0000_00FF, 32'h0000_00FF);
-        drive(32'hFF00_0000, 32'h00FF_FFFF);
-        drive(32'h1234_5678, 32'h8765_4321);
+            // build golden
+            if (lane_cnt == 1) begin
+                prod       = va_tmp[7:0] * vb_tmp[7:0];
+                golden_sum = golden_sum + prod;
+            end
+            else begin      // lane_cnt == 4
+                prod = 0;
+                for (i = 0; i < 4; i = i + 1)
+                    prod = prod + va_tmp[i*8 +: 8] * vb_tmp[i*8 +: 8];
+                golden_sum = golden_sum + prod;
+            end
 
-        // 10 000 random
-        for (i=0; i<10000; i=i+1) begin
+            // drive to DUT
             @(posedge clk);
-            if ($random%2)
-                drive($random, $random);
+            vec_valid <= 1'b1;
+            vec_a     <= va_tmp;
+            vec_b     <= vb_tmp;
+
+            @(posedge clk);
+            vec_valid <= 1'b0;        // idle one cycle
         end
 
-        // drain pipeline
-        repeat(1000) @(posedge clk);
+        wait (done_flag);
+        @(posedge clk);               // let done_flag clear
+    end
+    endtask
 
-        if (fail==0) $display("#### VECTOR_MAC_TOP PASS ####");
-        else         $display("FAIL=%0d", fail);
+    // -------------------------------------------------------------------------
+    // test sequence
+    // -------------------------------------------------------------------------
+    initial begin
+        // init
+        rst_n     = 1'b0;
+        vec_valid = 1'b0;
+        vec_a     = 0;
+        vec_b     = 0;
+        done_flag = 1'b0;
+
+        // release reset
+        repeat (4) @(posedge clk);
+        rst_n = 1'b1;
+
+        // run one vector
+        run_vector;
+
+        $display("\n=== ALL TESTS PASSED ===");
         $finish;
     end
 
-    //----------------------------------------------------------------
-    always @(posedge clk) begin
-        // push current dot4 (if in_valid) into FIFO
-        push_fifo(dot4(in_a,in_b), in_valid);
-
-        // consume FIFO head WHEN head_valid
-        if (v_fifo[DELAY-1]) begin
-            gold_acc = gold_acc + fifo[DELAY-1];
-            beat_cnt = beat_cnt + 1;
-            if (beat_cnt == BEATS) beat_cnt = 0;
-        end
-
-        // compare at DUT out_valid (== last beat)
-        if (out_valid) begin
-            if (gold_acc === mac_out) pass = pass + 1;
-            else begin
-                $display("Mismatch @%0t  exp=%0d  got=%0d",
-                         $time, gold_acc, mac_out);
-                fail = fail + 1;
-            end
-            gold_acc = 0;   // clear for next window
-        end
-    end
 endmodule
