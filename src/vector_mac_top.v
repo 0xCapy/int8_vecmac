@@ -7,7 +7,7 @@
 // ============================================================================
 module vector_mac_top_param #(
     parameter integer ELEMS        = 1000,   // vector length
-    parameter integer ACTIVE_LANES = 1       // **set to 1 or 4 before impl**
+    parameter integer ACTIVE_LANES = 4       // **set to 1 or 4 before impl**
 )(
     input  wire        clk,
     input  wire        rst_n,       // async low
@@ -66,7 +66,7 @@ endgenerate
         .rst_n       (rst_n),
         .in_valid    (core_valid),
         .partial_sum (core_sum),
-        .lanes_i     (ACTIVE_LANES[4:0]),    // 1 »ò 4
+        .lanes_i     (ACTIVE_LANES[4:0]),
         .final_sum   (result_sum),
         .result_valid(result_valid)
     );
