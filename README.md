@@ -13,11 +13,6 @@
 * **Deliverables** – parameterised RTL, timing-clean 1/4/8/16-lane builds, self-checking test-benches, batch build scripts.
 * **Post-implementation highlights**
 
-| Lanes | F<sub>max</sub> \[MHz] | TP \[MMAC/s] |  TP/CLB |   TP/W |
-| ----: | ---------------------: | -----------: | ------: | -----: |
-|     1 |                    211 |          211 |     5.3 |     21 |
-| **4** |                **217** |      **868** | **6.5** |     38 |
-|     8 |                    209 |        1 672 |     6.1 | **40** |
 
 ![Data Table](doc/data_dia.png)
 
@@ -37,18 +32,7 @@
 
 ## 3 Top-level architecture
 
-```text
-    128-bit A ┐
-               ├─ lane slice ─┐
-    128-bit B ┘              ▼
- ┌───────────────────────────────────────┐
- │    N-lane MAC array (1/4/8/16)       │
- │ [Wallace8×N] → pipelined adder tree → Σ[N] │
- └───────────────────────────────────────┘
-                  │ 20-bit partial sum
-                  ▼
-       programmable accumulator (32-bit)
-```
+![System Architecture](doc/hi_dia.png)
 
 * **Parallelism switch** – edit one line:
 
@@ -62,7 +46,6 @@
 * **Latency** = `3 + log2(N) + 1` cycles; **II = 1** for all modes.
 * All test-benches confirm correctness and phase alignment.
 
-![System Architecture](doc/hi_dia.png)
 
 ---
 
@@ -70,9 +53,16 @@
 
 * **Throughput efficiency** (TP/CLB) and **Power efficiency** (TP/W) metrics.
 
-![Throughput per CLB](doc/eff_dia.png)
 
-![Power efficiency](doc/pow_dia.png)
+
+<p align="center">
+  <img src="doc/eff_dia.png" alt="Throughput per CLB" width="50%" />
+</p>
+
+<p align="center">
+  <img src="doc/pow_dia.png" alt="Power efficiency" width="50%" />
+</p>
+
 
 ---
 
@@ -102,10 +92,8 @@ int8_vecmac/
 ├── src/              RTL sources
 ├── constr/           mul_clock.xdc
 ├── sim/              test-benches
-├── scripts/          build.tcl, sim.tcl
-├── Makefile          make vivado | sim | gui
 ├── doc/              figures and data diagrams
-└── README.md         this file
+└── README.md         
 ```
 
 ---
