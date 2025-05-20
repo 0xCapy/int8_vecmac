@@ -1,7 +1,7 @@
 `timescale 1ns/1ps
 // =============================================================================
 //  tb_mul1x8x8_wallace  (REV-F) - add full-throttle stress test
-//  Discription : This file test 1x8x8 Mac Intergrating design
+//  Discription : This file test 1x8x8 Mac Intergrating design with boundary, stress and random test.
 //  Author: Hubo 17/05/2025
 // =============================================================================
 module tb_mul1x8x8_wallace;

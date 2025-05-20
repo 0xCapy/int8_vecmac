@@ -1,14 +1,14 @@
 `timescale 1ns/1ps
 // ============================================================================
 //  tb_vector_mac_param  -  vector-level checker for vector_mac_top_param
-//  Discription : This file test top design
+//  Discription : This file test top design with full senerio-based situarion which is required in handout.
 //  ********How to use? -- By switiching "LANE_P" from 1/4/8/16, it will automatically test corespond design.
 //  Author: Hubo 17/05/2025
 // ============================================================================
 module tb_vector_mac_top_para;
 
     // ---------- choose MAC version ----------
-    parameter integer LANE_P = 1;          // 1 or 4 or 8 or 16 for diff macs
+    parameter integer LANE_P = 4;          // 1 or 4 or 8 or 16 for diff macs
 
     // ---------- constants ----------
     parameter integer ELEMS  = 1000;

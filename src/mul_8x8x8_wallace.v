@@ -1,6 +1,6 @@
 `timescale 1ns/1ps
 // ===========================================================================
-//  Discription : This file provides integrating MAC design - 8 Macs version - 8x8x8
+//  Discription : This file provides integrating MAC design - 8 Macs version - 8x8x8 with boundary, stress and random test.
 // Author: Hubo
 // ===========================================================================
 (* use_dsp = "no" *)

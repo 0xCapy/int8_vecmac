@@ -1,7 +1,7 @@
 `timescale 1ns/1ps
 // =================================================================
 //  Testbench for parameterised pipelined adder tree (adder_tree_var)
-//  Description: This file is for testing adder tree design with different lines
+//  Description: This file is for testing adder tree design with different lines with boundary, stress and random test.
 //  Author: Hubo 17/05/2025
 // ===================================
 

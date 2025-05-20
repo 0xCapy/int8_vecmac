@@ -24,7 +24,7 @@ module wallace_mult8 (
     output wire [15:0] product
 );
     // ---------------- constants ----------------
-    localparam W = 17;             // 16 bits + 1 carry bit
+    localparam W = 17;             // 16 bits + 1 guard bit
 
 // 0) Partial products 
 // ------------------------------------------------------------------
